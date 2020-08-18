@@ -7,7 +7,7 @@
     "start": "nuxt start",
     "build": "cross-env DEPLOY_ENV=GH_PAGES nuxt build",
     "generate": "cross-env DEPLOY_ENV=GH_PAGES nuxt generate",
-    "deploy": "push-dir --dir=dist --branch=gh-pages --cleanup"
+    "deploy": "npm run generate && push-dir --dir=dist --branch=gh-pages --cleanup"
   },
   "dependencies": {
     "@nuxt/content": "^1.5.0",

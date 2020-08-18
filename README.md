@@ -1,5 +1,7 @@
 # nuxt-trial-manufacture
 
+https://kght6123.github.io/nuxt-trial-manufacture
+
 ## Build Setup
 
 ```bash
