@@ -118,7 +118,7 @@ export default {
       // getUserMedia() returns.
       // await this.sleep(1000);
 
-      if(true /*!ImageCapture*/) {
+      if(!ImageCapture) {
         this.$refs.video.onloadedmetadata = (e) => {
           this.$refs.video.play()
         }
