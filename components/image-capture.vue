@@ -6,7 +6,7 @@
 
     <video autoplay @play="onPlay" ref="video"></video>
 
-    <input type="range" :min="imageWidthMin" :max="imageWidthMax" :step="imageWidthStep" v-model="imageWidth">
+    <input type="range" :min="imageWidthMin" :max="imageWidthMax" :step="imageWidthStep" :value="imageWidth" />
 
     <button ref="takePhotoButton" disabled @click="onTakePhotoButtonClick">Take Photo</button>
     <button @click="onStart">Start</button>
@@ -81,24 +81,83 @@ export default {
         this.devices = devices
       })
       .catch(error => {
-        console.log(`${error.name}:${error.message}`)
+        console.error(`${error.name}:${error.message}`)
         alert(`${error.name}:${error.message}`)
       })
 
     this.onStart()
   },
   methods: {
+    async onStart() {
+      // https://developer.mozilla.org/ja/docs/Web/API/MediaDevices/getUserMedia
+      const front = false
+      // const constraints = { video: true, audio: false }
+      // const constraints = { video: { facingMode: (front ? 'user' : 'environment') }, audio: false }
+      const constraints = { video: { facingMode: (front ? 'user' : 'environment'), width: { min: 640, ideal: 4096, max: 4096 }, height: { min: 480, ideal: 2160, max: 2160 } }, audio: false }
+      // const constraints = { video: { facingMode: (front ? 'user' : 'environment'), width: { min: 640, ideal: 1920, max: 1920 }, height: { min: 480, ideal: 1080, max: 1080 } }, audio: false }
+      // { video: { facingMode: (front ? 'user' : { exact: 'environment' }) }, audio: false }
+      // { video: { deviceId: { exact: myExactCameraOrBustDeviceId } }, audio: false }
+      // { video: true, audio: false }
+      // { video: { frameRate: { ideal: 10, max: 15 } }, audio: false }
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+        .catch(error => {
+          console.error('Argh!', error)
+          alert(`mediaStreamが取得できませんでした。撮影設定を見直してください。${error.name}:${error.message}`)
+        })
+
+      console.log('mediaStream', mediaStream, this.$refs)
+      this.$refs.video.srcObject = mediaStream
+
+      if (!mediaStream) {
+        return
+      }
+
+      // Once crbug.com/711524 is fixed, we won't need to wait anymore. This is
+      // currently needed because capabilities can only be retrieved after the
+      // device starts streaming. This happens after and asynchronously w.r.t.
+      // getUserMedia() returns.
+      // await this.sleep(1000);
+
+      if(true /*!ImageCapture*/) {
+        this.$refs.video.onloadedmetadata = (e) => {
+          this.$refs.video.play()
+        }
+        alert(`ImageCapture APIが使えませんでした`)
+        return
+      }
+
+      const track = mediaStream.getVideoTracks()[0]
+      this.imageCapture = new ImageCapture(track)
+
+      const photoCapabilities = await this.imageCapture.getPhotoCapabilities()
+      const settings = this.imageCapture.track.getSettings()
+
+      this.imageWidthMin = photoCapabilities.imageWidth.min
+      this.imageWidthMax = photoCapabilities.imageWidth.max
+      this.imageWidthStep = photoCapabilities.imageWidth.step
+
+      const photoSettings = await this.imageCapture.getPhotoSettings()
+      this.imageWidthValue = photoSettings.imageWidth
+    },
     onTakePhotoButtonClick() {
-      this.imageCapture.takePhoto({ imageWidth: this.imageWidthValue })
-      .then(blob => createImageBitmap(blob))
-      .then(imageBitmap => {
-        this.drawCanvas(imageBitmap)
-        console.log(`Photo size is ${imageBitmap.width}x${imageBitmap.height}`)
-      })
-      .catch(error => {
-        console.log(error)
-        alert(`${error.name}:${error.message}`)
-      })
+      if (this.imageCapture) {
+        this.imageCapture.takePhoto({ imageWidth: this.imageWidthValue })
+          .then(blob => createImageBitmap(blob))
+          .then(imageBitmap => {
+            this.drawCanvas(imageBitmap)
+            console.log(`Photo size is ${imageBitmap.width}x${imageBitmap.height}`)
+          })
+          .catch(error => {
+            console.error(error)
+            alert(`${error.name}:${error.message}`)
+          })
+      } else {
+        // this.drawCanvas(this.$refs.video)
+        const { canvas } = this.$refs
+        canvas.getContext('2d').drawImage(this.$refs.video, 0, 0, canvas.width, canvas.height)
+        // canvas.getContext('2d').drawImage(this.$refs.video, 0, 0, this.$refs.video.videoWidth, this.$refs.video.videoHeight)
+        console.log('video size', this.$refs.video.videoWidth, this.$refs.video.videoHeight)
+      }
     },
     onPlay() {
       this.$refs.takePhotoButton.disabled = false;
@@ -117,48 +176,6 @@ export default {
     onStop() {
       if (this.$refs.video.srcObject && this.$refs.video.srcObject.getVideoTracks)
         this.$refs.video.srcObject.getVideoTracks()[0].stop()
-    },
-    onStart() {
-      // https://developer.mozilla.org/ja/docs/Web/API/MediaDevices/getUserMedia
-      const front = false
-      // const constraints = { video: true, audio: false }
-      const constraints = { video: { facingMode: (front ? 'user' : 'environment') }, audio: false }
-      // { video: { facingMode: (front ? 'user' : { exact: 'environment' }) }, audio: false }
-      // { video: { deviceId: { exact: myExactCameraOrBustDeviceId } }, audio: false }
-      // { video: true, audio: false }
-      // { video: { frameRate: { ideal: 10, max: 15 } }, audio: false }
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then(mediaStream => {
-          console.log('mediaStream', mediaStream, this.$refs)
-          this.$refs.video.srcObject = mediaStream
-
-          // Once crbug.com/711524 is fixed, we won't need to wait anymore. This is
-          // currently needed because capabilities can only be retrieved after the
-          // device starts streaming. This happens after and asynchronously w.r.t.
-          // getUserMedia() returns.
-          // await this.sleep(1000);
-
-          const track = mediaStream.getVideoTracks()[0]
-          this.imageCapture = new ImageCapture(track)
-
-          return this.imageCapture.getPhotoCapabilities()
-        })
-        .then(photoCapabilities => {
-          const settings = this.imageCapture.track.getSettings()
-
-          this.imageWidthMin = photoCapabilities.imageWidth.min
-          this.imageWidthMax = photoCapabilities.imageWidth.max
-          this.imageWidthStep = photoCapabilities.imageWidth.step
-
-          return this.imageCapture.getPhotoSettings()
-        })
-        .then(photoSettings => {
-          this.imageWidthValue = photoSettings.imageWidth
-        })
-        .catch(error => {
-          console.log('Argh!', error)
-          alert(`${error.name}:${error.message}`)
-        })
     },
     sleep(ms = 0) {
       return new Promise(r => setTimeout(r, ms));
