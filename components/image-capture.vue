@@ -151,7 +151,22 @@ export default {
     onTakePhotoButtonClick() {
       if (this.imageCapture) {
         this.imageCapture.takePhoto({ imageWidth: this.imageWidthValue })
-          .then(blob => createImageBitmap(blob))
+          // .then((blob) => createImageBitmap(blob))
+          .then(blob => {
+            // 画像ファイルをダウンロード
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            document.body.appendChild(a)
+            a.download = 'shoooot.jpg'
+            a.href = url
+            a.click()
+            a.remove()
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+            }, 1000)
+            // 画像ファイルをビットマップに変換
+            return createImageBitmap(blob)
+          })
           .then(imageBitmap => {
             this.drawCanvas(imageBitmap)
             console.log(`Photo size is ${imageBitmap.width}x${imageBitmap.height}`)
