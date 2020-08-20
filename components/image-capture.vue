@@ -6,7 +6,11 @@
 
     <video autoplay @play="onPlay" ref="video"></video>
 
-    <input type="range" :min="imageWidthMin" :max="imageWidthMax" :step="imageWidthStep" :value="imageWidth" />
+    <input type="range" :min="imageWidthMin" :max="imageWidthMax" :step="imageWidthStep" v-model="imageWidthValue" />
+    Now：{{ imageWidthValue }}<br />
+    Min：{{ imageWidthMin }}<br />
+    Max：{{ imageWidthMax }}<br />
+    Step：{{ imageWidthStep }}<br />
 
     <button ref="takePhotoButton" disabled @click="onTakePhotoButtonClick">Take Photo</button>
     <button @click="onStart">Start</button>
@@ -50,14 +54,14 @@ export default {
     }
   },
   computed: {
-    imageWidth: {
-      get: function() {
-        return this.imageWidthValue
-      },
-      set: function(newValue) {
-        this.imageWidthValue = newValue
-      }
-    }
+    // imageWidth: {
+    //   get: function() {
+    //     return this.imageWidthValue
+    //   },
+    //   set: function(newValue) {
+    //     this.imageWidthValue = newValue
+    //   }
+    // }
   },
   mounted() {
     if (!navigator.mediaDevices) {
@@ -66,12 +70,17 @@ export default {
     }
     // https://developer.mozilla.org/ja/docs/Web/API/MediaDevices/getSupportedConstraints
     const supportedConstraints = navigator.mediaDevices.getSupportedConstraints()
-    for (let constraint in supportedConstraints) {
-      if (supportedConstraints.hasOwnProperty(constraint)) {
-        console.log(`constraint: ${constraint}`)
-        this.supportedConstraints.push(constraint)
-      }
-    }
+    // for (let constraint in supportedConstraints) {
+    //   if (supportedConstraints.hasOwnProperty(constraint)) {
+    //     console.log(`constraint: ${constraint}`)
+    //     this.supportedConstraints.push(constraint)
+    //   }
+    // }
+    Object.keys(supportedConstraints).forEach((key) => {
+      const enabled = supportedConstraints[key]
+      console.log(`constraint: ${key}`)
+      if (enabled) this.supportedConstraints.push(key)
+    })
     // https://developer.mozilla.org/ja/docs/Web/API/MediaDevices/enumerateDevices
     navigator.mediaDevices.enumerateDevices()
       .then(devices => {
@@ -130,7 +139,7 @@ export default {
       this.imageCapture = new ImageCapture(track)
 
       const photoCapabilities = await this.imageCapture.getPhotoCapabilities()
-      const settings = this.imageCapture.track.getSettings()
+      // const settings = this.imageCapture.track.getSettings()
 
       this.imageWidthMin = photoCapabilities.imageWidth.min
       this.imageWidthMax = photoCapabilities.imageWidth.max
@@ -164,8 +173,8 @@ export default {
     },
     drawCanvas(img) {
       const { canvas } = this.$refs
-      canvas.width = getComputedStyle(canvas).width.split('px')[0]
-      canvas.height = getComputedStyle(canvas).height.split('px')[0]
+      canvas.width = getComputedStyle(canvas).width.replace('px', '') // .split('px')[0]
+      canvas.height = getComputedStyle(canvas).height.replace('px', '') // .split('px')[0]
       let ratio  = Math.min(canvas.width / img.width, canvas.height / img.height)
       let x = (canvas.width - img.width * ratio) / 2
       let y = (canvas.height - img.height * ratio) / 2
@@ -178,7 +187,7 @@ export default {
         this.$refs.video.srcObject.getVideoTracks()[0].stop()
     },
     sleep(ms = 0) {
-      return new Promise(r => setTimeout(r, ms));
+      return new Promise((resolve) => setTimeout(resolve, ms))
     }
   }
 }
